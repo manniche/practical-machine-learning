@@ -1,0 +1,62 @@
+Programming Assignment 1 for "Practical Macine Learning"
+========================================================
+
+The goal of your project is to predict the manner in which they did the exercise. This is the "classe" variable in the training set. You may use any of the other variables to predict with. You should 
+
+ 1. create a report describing how you built your model, 
+ 2. how you used cross validation, 
+ 3. what you think the expected out of sample error is, and 
+ 4. why you made the choices you did. 
+ 
+You will also use your prediction model to predict 20 different test cases.
+
+```{r, message=FALSE, warning=FALSE}
+library(caret)
+data = read.csv("C:\\Temp\\pml-training.csv",na.strings=c("NA",""))
+head(data)
+```
+
+The `head` command shows us that we can expect many NA values in the data set, so the first task should be to sanitize the data.
+
+```{r, message=FALSE, warning=FALSE}
+data.nas <- apply(data,2,function(x) {sum(is.na(x))})
+training.data <- data[,which(data.nas == 0)]
+```
+
+Second, there are some variables that we should not be using as predictors directly: 'user_name', timestamps and measurement windows should all be excluded from the predictors training set.
+
+```{r}
+training.data.clean <- training.data[,8:dim(training.data)[2]]
+```
+
+Then, we construct datasets for cross-validation, separated on the `classe` variable.
+
+```{r}
+idx <- createDataPartition(y = training.data.clean$classe, p=0.2,list=FALSE)
+training.data.fifth <- training.data.clean[idx, ]
+training.data.cv <- training.data.clean[-idx, ]
+```
+
+```{r, message=FALSE, warning=FALSE}
+training.model.fitted <- train(as.factor(training.data.fifth$classe)~ .,data=training.data.fifth,  preProcess=c("pca"),  method="rf",prox=TRUE, trControl = trainControl(method = "cv", number = 4, allowParallel=F))
+```
+
+Then see how the model does against the cross-validation set
+
+```{r}
+predictions = predict(training.model.fitted, training.data.cv[-60])
+table(predictions,training.data.cv$classe)
+accuracy_training = sum(predictions == training.data.cv$classe)/length(predictions)
+accuracy_training
+```
+
+And lets see how the model does on the test data
+
+```{r}
+raw.testing.data <- read.csv("C:\\Temp\\pml-testing.csv")
+answers  <- predict(training.model.fitted,raw.testing.data);
+table(answers)
+answers_text = cbind(raw.testing.data$problem_id,as.character(answers))
+answers_text
+```
+
